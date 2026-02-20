@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { ticktickRequest } from '../common/utils.js';
-import { TICKTICK_API_URL, TICKTICK_API_V2_URL } from '../common/urls.js';
+import { TICKTICK_API_URL } from '../common/urls.js';
 import {
   TickTickCheckListItemSchema,
-  TickTickCompletedTaskSchema,
   TickTickTaskDeleteSchema,
   TickTickTaskSchema,
   TickTickUserSchema,
 } from '../common/types.js';
-import { getProjectWithData } from './projects.js';
+import { getProjectWithData, getUserProjects } from './projects.js';
 
 export const GetTaskByIdsOptionsSchema = z.object({
   projectId: z.string().describe('Project identifier'),
@@ -209,30 +208,41 @@ export const GetCompletedTasksOptionsSchema = z.object({
     .describe('Max number of results to return (default 100)'),
 });
 
-export const GetCompletedTasksResponseSchema = z.array(
-  TickTickCompletedTaskSchema
-);
-
 type GetCompletedTasksParams = z.infer<typeof GetCompletedTasksOptionsSchema>;
 
 export async function getCompletedTasks(
   params: GetCompletedTasksParams
-): Promise<z.infer<typeof GetCompletedTasksResponseSchema>> {
+): Promise<z.infer<typeof TickTickTaskSchema>[]> {
   const { from, to, limit } = params;
-  const toDate = to || new Date().toISOString();
+  const fromDate = new Date(from);
+  const toDate = to ? new Date(to) : new Date();
   const resultLimit = limit || 100;
 
-  const queryParams = new URLSearchParams({
-    from,
-    to: toDate,
-    limit: String(resultLimit),
-  });
+  const allProjects = await getUserProjects();
+  const completedTasks: z.infer<typeof TickTickTaskSchema>[] = [];
 
-  const url = `${TICKTICK_API_V2_URL}/project/all/completedInAll/?${queryParams.toString()}`;
+  for (const project of allProjects) {
+    if (completedTasks.length >= resultLimit) break;
+    try {
+      const data = await getProjectWithData(project.id);
+      for (const task of data.tasks) {
+        if (completedTasks.length >= resultLimit) break;
+        if (task.completedTime != null) {
+          const completedMs =
+            typeof task.completedTime === 'number'
+              ? task.completedTime
+              : new Date(task.completedTime).getTime();
+          if (completedMs >= fromDate.getTime() && completedMs <= toDate.getTime()) {
+            completedTasks.push(task);
+          }
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
 
-  const response = await ticktickRequest(url);
-
-  return GetCompletedTasksResponseSchema.parse(response);
+  return completedTasks;
 }
 
 // --- batch_update_tasks ---
@@ -330,7 +340,8 @@ type GetInboxTasksParams = z.infer<typeof GetInboxTasksOptionsSchema>;
 
 export async function getInboxTasks(params: GetInboxTasksParams) {
   const user = await getCurrentUser();
-  const inboxProjectId = `inbox${user.id}`;
+  const userId = String(user.inboxId ?? user.id ?? user.userId);
+  const inboxProjectId = userId.startsWith('inbox') ? userId : `inbox${userId}`;
   const data = await getProjectWithData(inboxProjectId);
 
   if (!params.includeCompleted) {
