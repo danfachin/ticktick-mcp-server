@@ -3,9 +3,7 @@ import { ticktickRequest } from '../common/utils.js';
 import { TICKTICK_API_URL } from '../common/urls.js';
 import {
   TickTickCheckListItemSchema,
-  TickTickTaskDeleteSchema,
   TickTickTaskSchema,
-  TickTickUserSchema,
 } from '../common/types.js';
 import { getProjectWithData, getUserProjects } from './projects.js';
 
@@ -245,51 +243,6 @@ export async function getCompletedTasks(
   return completedTasks;
 }
 
-// --- batch_update_tasks ---
-
-export const BatchUpdateTasksOptionsSchema = z
-  .object({
-    add: z
-      .array(TickTickTaskSchema.partial().extend({ title: z.string(), projectId: z.string() }))
-      .optional()
-      .describe('Array of task objects to create'),
-    update: z
-      .array(TickTickTaskSchema.partial().extend({ id: z.string(), projectId: z.string() }))
-      .optional()
-      .describe('Array of task objects to update'),
-    delete: z
-      .array(TickTickTaskDeleteSchema)
-      .optional()
-      .describe('Array of { taskId, projectId } objects to delete'),
-  })
-  .refine(
-    (data) =>
-      (data.add && data.add.length > 0) ||
-      (data.update && data.update.length > 0) ||
-      (data.delete && data.delete.length > 0),
-    { message: 'At least one of add, update, or delete must be provided' }
-  );
-
-type BatchUpdateTasksParams = z.infer<typeof BatchUpdateTasksOptionsSchema>;
-
-export async function batchUpdateTasks(
-  params: BatchUpdateTasksParams
-): Promise<unknown> {
-  const url = `${TICKTICK_API_URL}/batch/task`;
-
-  const body: Record<string, unknown> = {};
-  if (params.add) body.add = params.add;
-  if (params.update) body.update = params.update;
-  if (params.delete) body.delete = params.delete;
-
-  const response = await ticktickRequest(url, {
-    method: 'POST',
-    body,
-  });
-
-  return response;
-}
-
 // --- get_subtasks ---
 
 export const GetSubtasksOptionsSchema = z.object({
@@ -317,19 +270,15 @@ export async function getSubtasks(
   return projectData.tasks.filter((task) => task.parentId === parentId);
 }
 
-// --- get_current_user ---
-
-export async function getCurrentUser(): Promise<
-  z.infer<typeof TickTickUserSchema>
-> {
-  const url = `${TICKTICK_API_URL}/user`;
-  const response = await ticktickRequest(url);
-  return TickTickUserSchema.parse(response);
-}
-
 // --- get_inbox_tasks ---
 
 export const GetInboxTasksOptionsSchema = z.object({
+  userId: z
+    .string()
+    .optional()
+    .describe(
+      'TickTick user ID (numeric string, e.g. "115781412"). If omitted, falls back to TICKTICK_USER_ID env var.'
+    ),
   includeCompleted: z
     .boolean()
     .optional()
@@ -339,8 +288,12 @@ export const GetInboxTasksOptionsSchema = z.object({
 type GetInboxTasksParams = z.infer<typeof GetInboxTasksOptionsSchema>;
 
 export async function getInboxTasks(params: GetInboxTasksParams) {
-  const user = await getCurrentUser();
-  const userId = String(user.inboxId ?? user.id ?? user.userId);
+  const userId = params.userId || process.env.TICKTICK_USER_ID;
+  if (!userId) {
+    throw new Error(
+      'userId is required: pass it as an argument or set TICKTICK_USER_ID in your environment'
+    );
+  }
   const inboxProjectId = userId.startsWith('inbox') ? userId : `inbox${userId}`;
   const data = await getProjectWithData(inboxProjectId);
 

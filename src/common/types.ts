@@ -67,16 +67,3 @@ export const TickTickCheckListItemSchema = z.object({
     .describe(`Subtask item completed time in "yyyy-MM-dd'T'HH:mm:ssZ" format`),
 });
 
-export const TickTickUserSchema = z
-  .object({
-    id: z.union([z.string(), z.number()]).optional(),
-    userId: z.union([z.string(), z.number()]).optional(),
-    username: z.string().optional(),
-    inboxId: z.string().optional(),
-  })
-  .passthrough();
-
-export const TickTickTaskDeleteSchema = z.object({
-  taskId: z.string().describe('Task identifier'),
-  projectId: z.string().describe('Project identifier'),
-});

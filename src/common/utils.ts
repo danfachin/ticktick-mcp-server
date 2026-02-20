@@ -27,8 +27,11 @@ export async function ticktickRequest(
     headers['Authorization'] = `Bearer ${process.env.TICKTICK_ACCESS_TOKEN}`;
   }
 
+  const method = options.method || 'GET';
+  console.error(`[ticktick] ${method} ${url}`);
+
   const response = await fetch(url, {
-    method: options.method || 'GET',
+    method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -36,9 +39,11 @@ export async function ticktickRequest(
   const responseBody = await parseResponseBody(response);
 
   if (!response.ok) {
+    console.error(`[ticktick] ${response.status} ${response.statusText}`, JSON.stringify(responseBody));
     throw createTickTickError(response.status, responseBody);
   }
 
+  console.error(`[ticktick] ${response.status} OK`);
   return responseBody;
 }
 

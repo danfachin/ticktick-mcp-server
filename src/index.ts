@@ -100,28 +100,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: zodToJsonSchema(tasks.GetCompletedTasksOptionsSchema),
       },
       {
-        name: 'batch_update_tasks',
-        description:
-          'Batch create, update, and/or delete multiple tasks in a single request',
-        inputSchema: zodToJsonSchema(
-          tasks.BatchUpdateTasksOptionsSchema.innerType()
-        ),
-      },
-      {
         name: 'get_subtasks',
         description:
           'Get all subtasks of a parent task by fetching project data and filtering by parentId',
         inputSchema: zodToJsonSchema(tasks.GetSubtasksOptionsSchema),
       },
       {
-        name: 'get_current_user',
-        description: 'Get the current authenticated user profile',
-        inputSchema: zodToJsonSchema(z.object({})),
-      },
-      {
         name: 'get_inbox_tasks',
         description:
-          'Get tasks from the inbox (resolves inbox project ID automatically from user profile)',
+          'Get tasks from the inbox. Requires userId or TICKTICK_USER_ID env var.',
         inputSchema: zodToJsonSchema(tasks.GetInboxTasksOptionsSchema),
       },
     ],
@@ -130,7 +117,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    const toolsWithoutArguments = ['get_user_projects', 'get_current_user'];
+    const toolsWithoutArguments = ['get_user_projects'];
 
     if (
       !request.params.arguments &&
@@ -280,32 +267,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'batch_update_tasks': {
-        const args = tasks.BatchUpdateTasksOptionsSchema.parse(
-          request.params.arguments
-        );
-
-        const result = await tasks.batchUpdateTasks(args);
-
-        return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
       case 'get_subtasks': {
         const args = tasks.GetSubtasksOptionsSchema.parse(
           request.params.arguments
         );
 
         const result = await tasks.getSubtasks(args);
-
-        return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-        };
-      }
-
-      case 'get_current_user': {
-        const result = await tasks.getCurrentUser();
 
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
