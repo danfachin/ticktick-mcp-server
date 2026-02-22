@@ -288,7 +288,7 @@ export const GetInboxTasksOptionsSchema = z.object({
 type GetInboxTasksParams = z.infer<typeof GetInboxTasksOptionsSchema>;
 
 export async function getInboxTasks(params: GetInboxTasksParams) {
-  const userId = params.userId || process.env.TICKTICK_USER_ID;
+  const userId = params.userId ?? process.env.TICKTICK_USER_ID;
   if (!userId) {
     throw new Error(
       'userId is required: pass it as an argument or set TICKTICK_USER_ID in your environment'
