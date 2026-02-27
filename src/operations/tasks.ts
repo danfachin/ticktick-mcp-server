@@ -212,27 +212,34 @@ export async function getCompletedTasks(
   params: GetCompletedTasksParams
 ): Promise<z.infer<typeof TickTickTaskSchema>[]> {
   const { from, to, limit } = params;
-  const fromDate = new Date(from);
-  const toDate = to ? new Date(to) : new Date();
+  const fromMs = new Date(from).getTime();
+  const toMs = new Date(to || new Date().toISOString()).getTime();
   const resultLimit = limit || 100;
 
   const allProjects = await getUserProjects();
-  const completedTasks: z.infer<typeof TickTickTaskSchema>[] = [];
+  const projectIds = allProjects.map((p) => p.id);
 
-  for (const project of allProjects) {
-    if (completedTasks.length >= resultLimit) break;
+  // Inbox does not appear in the projects list — include it explicitly
+  const inboxId = process.env.TICKTICK_USER_ID
+    ? `inbox${process.env.TICKTICK_USER_ID}`
+    : null;
+  if (inboxId) projectIds.push(inboxId);
+
+  const matchingTasks: z.infer<typeof TickTickTaskSchema>[] = [];
+
+  for (const projectId of projectIds) {
+    if (matchingTasks.length >= resultLimit) break;
     try {
-      const data = await getProjectWithData(project.id);
-      for (const task of data.tasks) {
-        if (completedTasks.length >= resultLimit) break;
-        if (task.completedTime != null) {
-          const completedMs =
-            typeof task.completedTime === 'number'
-              ? task.completedTime
-              : new Date(task.completedTime).getTime();
-          if (completedMs >= fromDate.getTime() && completedMs <= toDate.getTime()) {
-            completedTasks.push(task);
-          }
+      const { tasks } = await getProjectWithData(projectId);
+      for (const task of tasks) {
+        if (matchingTasks.length >= resultLimit) break;
+        if (task.completedTime == null) continue;
+        const completedMs =
+          typeof task.completedTime === 'number'
+            ? task.completedTime
+            : new Date(task.completedTime).getTime();
+        if (completedMs >= fromMs && completedMs <= toMs) {
+          matchingTasks.push(task);
         }
       }
     } catch {
@@ -240,7 +247,7 @@ export async function getCompletedTasks(
     }
   }
 
-  return completedTasks;
+  return matchingTasks;
 }
 
 // --- get_subtasks ---

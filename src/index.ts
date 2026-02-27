@@ -96,7 +96,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'get_completed_tasks',
         description:
-          'Get completed tasks across all projects within a date range',
+          'Get tasks that have a completedTime timestamp within the specified date range, across all projects. Note: the TickTick v1 API only exposes tasks still in the active list that carry a completedTime field (e.g. subtasks, checklist items, or recurring task completions). Fully completed/deleted tasks are not accessible via the v1 OAuth API.',
         inputSchema: zodToJsonSchema(tasks.GetCompletedTasksOptionsSchema),
       },
       {
