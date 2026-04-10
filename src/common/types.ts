@@ -28,6 +28,7 @@ export const TickTickTaskSchema = z.object({
   status: z.number(),
   completedTime: z.union([z.string(), z.number()]).optional(),
   sortOrder: z.number().optional(),
+  parentId: z.string().optional(),
   items: z
     .array(
       z.object({
@@ -65,3 +66,4 @@ export const TickTickCheckListItemSchema = z.object({
     .optional()
     .describe(`Subtask item completed time in "yyyy-MM-dd'T'HH:mm:ssZ" format`),
 });
+

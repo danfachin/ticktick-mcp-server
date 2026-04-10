@@ -93,6 +93,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: 'Delete a task',
         inputSchema: zodToJsonSchema(tasks.TasksIdsOptionsSchema),
       },
+      {
+        name: 'get_completed_tasks',
+        description:
+          'Get tasks that have a completedTime timestamp within the specified date range, across all projects. Note: the TickTick v1 API only exposes tasks still in the active list that carry a completedTime field (e.g. subtasks, checklist items, or recurring task completions). Fully completed/deleted tasks are not accessible via the v1 OAuth API.',
+        inputSchema: zodToJsonSchema(tasks.GetCompletedTasksOptionsSchema),
+      },
+      {
+        name: 'get_subtasks',
+        description:
+          'Get all subtasks of a parent task by fetching project data and filtering by parentId',
+        inputSchema: zodToJsonSchema(tasks.GetSubtasksOptionsSchema),
+      },
+      {
+        name: 'get_inbox_tasks',
+        description:
+          'Get tasks from the inbox. Requires userId or TICKTICK_USER_ID env var.',
+        inputSchema: zodToJsonSchema(tasks.GetInboxTasksOptionsSchema),
+      },
     ],
   };
 });
@@ -234,6 +252,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         return {
           content: [{ type: 'text', text: 'Task deleted successfully' }],
+        };
+      }
+
+      case 'get_completed_tasks': {
+        const args = tasks.GetCompletedTasksOptionsSchema.parse(
+          request.params.arguments
+        );
+
+        const result = await tasks.getCompletedTasks(args);
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case 'get_subtasks': {
+        const args = tasks.GetSubtasksOptionsSchema.parse(
+          request.params.arguments
+        );
+
+        const result = await tasks.getSubtasks(args);
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case 'get_inbox_tasks': {
+        const args = tasks.GetInboxTasksOptionsSchema.parse(
+          request.params.arguments ?? {}
+        );
+
+        const result = await tasks.getInboxTasks(args);
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       }
 
